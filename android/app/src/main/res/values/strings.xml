@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RallyUp</string>
+    <string name="title_activity_main">RallyUp</string>
+    <string name="package_name">com.rallyup.pickleball</string>
+    <string name="custom_url_scheme">com.rallyup.pickleball</string>
+</resources>

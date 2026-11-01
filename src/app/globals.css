@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f2f7f4;
+  --foreground: #021a12;
+  --card-bg: #ffffff;
+  --card-border: #dae5de;
+  --accent-lime: #a3e635;
+  --accent-lime-dark: #65a30d;
+}
+
+.dark {
+  --background: #02160f;
+  --foreground: #f4faf6;
+  --card-bg: #06261c;
+  --card-border: #104433;
+  --accent-lime: #bbf226;
+  --accent-lime-dark: #84cc16;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  min-height: 100vh;
+  /* Safe area insets for mobile / notch phones */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Touch friendly button states */
+button:active {
+  transform: scale(0.98);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(187, 242, 38, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(187, 242, 38, 0.4);
+}

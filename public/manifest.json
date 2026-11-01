@@ -1,0 +1,29 @@
+{
+  "name": "RallyUp - Pickleball Open Play Manager",
+  "short_name": "RallyUp",
+  "description": "Offline-first open play session, court rotation, and match manager for pickleball",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#02160f",
+  "theme_color": "#02160f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}

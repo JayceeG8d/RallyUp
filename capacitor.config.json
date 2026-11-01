@@ -1,0 +1,9 @@
+{
+  "appId": "com.rallyup.pickleball",
+  "appName": "RallyUp",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
