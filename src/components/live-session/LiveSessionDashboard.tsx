@@ -23,6 +23,7 @@ import {
 } from '@/types';
 import { db } from '@/lib/db/dexie';
 import { SessionRepo, MatchRepo } from '@/lib/db/repository';
+import { SupabaseSync } from '@/lib/supabase/syncService';
 import { generateNextRoundMatches } from '@/lib/rotation/rotationEngine';
 import { LiveScoreboard } from '@/components/scoreboard/LiveScoreboard';
 import { ManualFinalScoreModal } from '@/components/live-session/ManualFinalScoreModal';
@@ -163,6 +164,8 @@ export function LiveSessionDashboard({
           }
         }
       );
+
+      SupabaseSync.syncFullSessionState(session.id);
 
       setRotationMsg(`Generated ${newMatches.length} match(es) for Round ${nextRound}!`);
       await loadData();

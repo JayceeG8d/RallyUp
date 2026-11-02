@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   Download,
@@ -14,9 +14,19 @@ import {
   AlertTriangle,
   HardDrive,
   Info,
+  Cloud,
+  RefreshCw,
+  Copy,
+  Zap,
 } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { BackupService } from '@/lib/backup/backupService';
+import {
+  getSupabaseConfig,
+  saveSupabaseConfig,
+  isSupabaseConfigured,
+} from '@/lib/supabase/supabaseClient';
+import { SupabaseSync, SUPABASE_SCHEMA_SQL } from '@/lib/supabase/syncService';
 
 interface SettingsViewProps {
   onDataRestored: () => void;
@@ -28,6 +38,70 @@ export function SettingsView({ onDataRestored }: SettingsViewProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetInput, setResetInput] = useState('');
   const [importing, setImporting] = useState(false);
+
+  // Supabase Cloud Sync State
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
+  const [configSource, setConfigSource] = useState<'env' | 'local' | 'none'>('none');
+  const [syncingCloud, setSyncingCloud] = useState(false);
+
+  useEffect(() => {
+    const cfg = getSupabaseConfig();
+    setSupabaseUrl(cfg.url);
+    setSupabaseAnonKey(cfg.anonKey);
+    setConfigSource(cfg.source);
+  }, []);
+
+  const handleSaveSupabaseConfig = () => {
+    saveSupabaseConfig(supabaseUrl, supabaseAnonKey);
+    const cfg = getSupabaseConfig();
+    setConfigSource(cfg.source);
+    if (cfg.url && cfg.anonKey) {
+      SupabaseSync.subscribeToRealtime(() => onDataRestored());
+      setStatusMessage({
+        type: 'success',
+        text: 'Supabase PostgreSQL + Realtime WebSockets connected!',
+      });
+    } else {
+      setStatusMessage({
+        type: 'success',
+        text: 'Supabase credentials cleared. Running in local IndexedDB mode.',
+      });
+    }
+  };
+
+  const handlePushToCloud = async () => {
+    setSyncingCloud(true);
+    setStatusMessage(null);
+    const res = await SupabaseSync.pushAllToCloud();
+    setSyncingCloud(false);
+    setStatusMessage({
+      type: res.success ? 'success' : 'error',
+      text: res.message,
+    });
+  };
+
+  const handlePullFromCloud = async () => {
+    setSyncingCloud(true);
+    setStatusMessage(null);
+    const res = await SupabaseSync.pullAllFromCloud();
+    setSyncingCloud(false);
+    setStatusMessage({
+      type: res.success ? 'success' : 'error',
+      text: res.message,
+    });
+    if (res.success) {
+      onDataRestored();
+    }
+  };
+
+  const handleCopySqlSchema = () => {
+    navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
+    setStatusMessage({
+      type: 'success',
+      text: 'Supabase SQL Schema copied to clipboard! Paste & Run it in your Supabase SQL Editor.',
+    });
+  };
 
   const downloadFile = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type });
@@ -164,14 +238,114 @@ export function SettingsView({ onDataRestored }: SettingsViewProps) {
         </div>
       )}
 
-      {/* Offline Storage Notice Card */}
+      {/* Offline Storage + Supabase Cloud Sync Notice Card */}
       <div className="p-4 rounded-xl bg-pickle-400/10 border border-pickle-400/20 text-xs text-pickle-800 dark:text-pickle-300 flex items-start gap-3">
         <HardDrive className="w-5 h-5 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-extrabold text-sm">Offline-First IndexedDB Architecture</p>
+          <p className="font-extrabold text-sm">Hybrid Local-First IndexedDB + Supabase Realtime Architecture</p>
           <p className="text-[11px] leading-relaxed opacity-90">
-            All your open play sessions, court rotations, player rosters, and match histories are stored permanently inside your browser / device using IndexedDB (Dexie.js). No internet connection is required to run sessions or score matches.
+            Every action writes to your device&apos;s local IndexedDB in &lt;1ms for zero-lag court performance, and automatically syncs in real-time via Supabase PostgreSQL + WebSockets when connected.
           </p>
+        </div>
+      </div>
+
+      {/* Supabase PostgreSQL + Realtime WebSockets Configuration */}
+      <div className="p-5 rounded-2xl bg-court-lightCard dark:bg-court-darkCard border border-court-lightBorder dark:border-court-darkBorder space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-court-darkBg dark:text-white flex items-center gap-2">
+              <Zap className="w-4 h-4 text-pickle-400" />
+              Supabase (PostgreSQL + Realtime WebSockets)
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Connect your Supabase project for live multi-device scoreboards and cloud sync.
+            </p>
+          </div>
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${
+              isSupabaseConfigured()
+                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                : 'bg-gray-500/15 text-gray-400 border border-gray-500/30'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isSupabaseConfigured() ? 'bg-emerald-400 animate-pulse' : 'bg-gray-400'
+              }`}
+            />
+            {isSupabaseConfigured()
+              ? configSource === 'env'
+                ? 'Connected (Env)'
+                : 'Connected (Live)'
+              : 'Local Mode'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+              Supabase Project URL
+            </label>
+            <input
+              type="text"
+              value={supabaseUrl}
+              onChange={(e) => setSupabaseUrl(e.target.value)}
+              disabled={configSource === 'env'}
+              placeholder="https://xyzcompany.supabase.co"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-court-lightBg dark:bg-court-darkBg border border-court-lightBorder dark:border-court-darkBorder text-xs text-court-darkBg dark:text-white focus:outline-none focus:border-pickle-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+              Supabase Anon Public Key
+            </label>
+            <input
+              type="password"
+              value={supabaseAnonKey}
+              onChange={(e) => setSupabaseAnonKey(e.target.value)}
+              disabled={configSource === 'env'}
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-court-lightBg dark:bg-court-darkBg border border-court-lightBorder dark:border-court-darkBorder text-xs text-court-darkBg dark:text-white focus:outline-none focus:border-pickle-400"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {configSource !== 'env' && (
+            <button
+              onClick={handleSaveSupabaseConfig}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-pickle-400 hover:bg-pickle-300 text-court-darkBg font-black text-xs uppercase tracking-wider shadow-sm transition-all"
+            >
+              <Cloud className="w-4 h-4" />
+              <span>Save & Connect</span>
+            </button>
+          )}
+
+          <button
+            onClick={handlePushToCloud}
+            disabled={!isSupabaseConfigured() || syncingCloud}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-court-lightBg dark:bg-court-darkBg hover:bg-pickle-400/20 disabled:opacity-40 border border-court-lightBorder dark:border-court-darkBorder text-xs font-bold text-court-darkBg dark:text-white transition-all"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-pickle-400 ${syncingCloud ? 'animate-spin' : ''}`} />
+            <span>Push Local to Cloud</span>
+          </button>
+
+          <button
+            onClick={handlePullFromCloud}
+            disabled={!isSupabaseConfigured() || syncingCloud}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-court-lightBg dark:bg-court-darkBg hover:bg-pickle-400/20 disabled:opacity-40 border border-court-lightBorder dark:border-court-darkBorder text-xs font-bold text-court-darkBg dark:text-white transition-all"
+          >
+            <Download className="w-3.5 h-3.5 text-sky-400" />
+            <span>Pull from Cloud</span>
+          </button>
+
+          <button
+            onClick={handleCopySqlSchema}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-court-lightBg dark:bg-court-darkBg hover:bg-pickle-400/20 border border-court-lightBorder dark:border-court-darkBorder text-xs font-bold text-court-darkBg dark:text-white transition-all ml-auto"
+          >
+            <Copy className="w-3.5 h-3.5 text-amber-400" />
+            <span>Copy SQL Schema</span>
+          </button>
         </div>
       </div>
 

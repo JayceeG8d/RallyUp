@@ -12,6 +12,7 @@ import {
   parseSkillLevelNumber,
   calculateMatchRatingAdjustments,
 } from '../rating/ratingEngine';
+import { SupabaseSync } from '../supabase/syncService';
 
 // Helper to generate UUIDs
 export function generateId(): string {
@@ -92,6 +93,7 @@ export const PlayerRepo = {
     };
 
     await db.players.add(player);
+    SupabaseSync.syncPlayer(player);
     return player;
   },
 
@@ -100,6 +102,8 @@ export const PlayerRepo = {
       ...updates,
       updatedAt: Date.now(),
     });
+    const updated = await db.players.get(id);
+    if (updated) SupabaseSync.syncPlayer(updated);
   },
 
   async archive(id: string): Promise<void> {
@@ -108,10 +112,13 @@ export const PlayerRepo = {
       isArchived: true,
       updatedAt: Date.now(),
     });
+    const updated = await db.players.get(id);
+    if (updated) SupabaseSync.syncPlayer(updated);
   },
 
   async deletePermanent(id: string): Promise<void> {
     await db.players.delete(id);
+    SupabaseSync.deletePlayer(id);
   },
 };
 
@@ -182,6 +189,8 @@ export const SessionRepo = {
       await db.sessionParticipants.bulkAdd(sessionParticipants);
     });
 
+    SupabaseSync.syncFullSessionState(sessionId);
+
     return session;
   },
 
@@ -190,6 +199,7 @@ export const SessionRepo = {
       status: 'completed',
       completedAt: Date.now(),
     });
+    SupabaseSync.syncFullSessionState(sessionId);
   },
 
   async deleteSession(sessionId: string): Promise<void> {
@@ -203,6 +213,7 @@ export const SessionRepo = {
         await db.matches.where('sessionId').equals(sessionId).delete();
       }
     );
+    SupabaseSync.deleteSession(sessionId);
   },
 };
 
@@ -230,6 +241,8 @@ export const MatchRepo = {
       scoreA,
       scoreB,
     });
+    const updated = await db.matches.get(matchId);
+    if (updated) SupabaseSync.syncMatches([updated]);
   },
 
   async completeMatch(
@@ -362,10 +375,14 @@ export const MatchRepo = {
               },
               updatedAt: now,
             });
+            const updatedPlayer = await db.players.get(player.id);
+            if (updatedPlayer) SupabaseSync.syncPlayer(updatedPlayer);
           }
         }
       }
     );
+
+    SupabaseSync.syncFullSessionState(sessionId);
   },
 };
 

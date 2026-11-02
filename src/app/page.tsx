@@ -14,6 +14,8 @@ import { SettingsView } from '@/components/settings/SettingsView';
 import { db } from '@/lib/db/dexie';
 import { Player, Session, Match, SessionParticipant } from '@/types';
 import { PlayerRepo, SessionRepo } from '@/lib/db/repository';
+import { SupabaseSync } from '@/lib/supabase/syncService';
+import { isSupabaseConfigured } from '@/lib/supabase/supabaseClient';
 
 // Default starter roster to seed if DB is empty on first boot
 const DEFAULT_STARTER_PLAYERS = [
@@ -70,7 +72,17 @@ export default function Home() {
   };
 
   useEffect(() => {
-    loadDatabaseData();
+    loadDatabaseData().then(() => {
+      if (isSupabaseConfigured()) {
+        SupabaseSync.pullAllFromCloud().then((res) => {
+          if (res.success) loadDatabaseData();
+        });
+      }
+    });
+
+    const unsubscribeRealtime = SupabaseSync.subscribeToRealtime(() => {
+      loadDatabaseData();
+    });
 
     // Register Service Worker for PWA offline operation
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -79,6 +91,10 @@ export default function Home() {
         .then((reg) => console.log('Service Worker registered:', reg.scope))
         .catch((err) => console.warn('Service Worker registration failed:', err));
     }
+
+    return () => {
+      unsubscribeRealtime();
+    };
   }, []);
 
   const handleSessionStarted = async (sessionId: string) => {
